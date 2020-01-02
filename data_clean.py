@@ -3,8 +3,7 @@
 import json
 from pandas.io.json import json_normalize
 import pandas as pd
-import datetime
-import dateutil
+from datetime import datetime
 import argparse
 import sqlite3
 
@@ -165,6 +164,7 @@ for i in range(1,numberOfServices):
 
     if print_test==1:
         print("---------------------------------------------------------")
+        print(runDate[i])
         print(trainIdentity[i])
         print(serviceUid[i])
         print(gbttBookedDeparture[i])
@@ -186,7 +186,7 @@ print(status.center(70, '#'))
 print("\n")
 
 #combine series to form one dataframe
-df_combined = pd.DataFrame({'runDate': runDate,
+df_combined = pd.DataFrame({'runDate': (runDate),
                             'trainIdentity': trainIdentity,
                             'serviceUid': serviceUid,
                             'atocCode': atocCode,
@@ -213,6 +213,8 @@ df_combined = pd.DataFrame({'runDate': runDate,
 status = "  Dataframe created "
 print(status.center(70, '#'))
 print("\n")
+
+df_combined = df_combined.drop(0)
 
 if args.out:
     #export dataframe to csv
