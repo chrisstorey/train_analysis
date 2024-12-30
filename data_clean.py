@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-import json
-from pandas.io.json import json_normalize
-import pandas as pd
-from datetime import datetime
 import argparse
+import json
 import sqlite3
 
+import pandas as pd
 
 parser = argparse.ArgumentParser(description='RealTimeTrains data cleaner')
 parser.add_argument("--file", "-f", type=str, required=True)
@@ -16,7 +14,7 @@ args = parser.parse_args()
 
 print(args.file)
 
-print_test=0
+PRINT_TEST=0
 
 
 with open (args.file) as f:
@@ -162,7 +160,7 @@ for i in range(1,numberOfServices):
 
 
 
-    if print_test==1:
+    if PRINT_TEST==1:
         print("---------------------------------------------------------")
         print(runDate[i])
         print(trainIdentity[i])

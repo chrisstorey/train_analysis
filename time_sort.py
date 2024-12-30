@@ -1,54 +1,56 @@
 #!/usr/bin/env python
 import sqlite3
+import datetime
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from datetime import datetime, date
-from dateutil import parser
-from datetime import timedelta
-conn = sqlite3.connect("/home/chris/projects/trains/database/trains.sqlite")
-df = pd.read_sql_query("select * from traindata;", conn)
 
-df['date-as-date'] = dateutil.parse(df['runDate'])
-print(df)
+# Constants
+DB_PATH = "/home/chris/projects/trains/database/trains.sqlite"
+SQL_QUERY = "SELECT * FROM traindata;"
+DATE_FORMAT = "%Y-%m-%d"
+TIME_FORMAT = "%H%M"
 
-df['runDate'] = pd.to_datetime(df['runDate'], format='%Y-%m-%d')
+# Load data
+conn = sqlite3.connect(DB_PATH)
+train_data = pd.read_sql_query(SQL_QUERY, conn)
 
-df['runDate']
+# Process 'runDate' as datetime
+train_data['runDate'] = pd.to_datetime(train_data['runDate'], format=DATE_FORMAT)
 
-for ind in df.index:
-    if df['gbttBookedDepartureNextDay'][ind] == "1":
-        df['date-as-date'][ind] = df['runDate'][ind] + timedelta(days=1)
-    else:
-        df['date-as-date'][ind] = df['runDate'][ind]
 
-df['booked-time'] = pd.to_datetime(df['gbttBookedDeparture'], format='%H%M')
+# Update 'date-as-date' column
+def update_date_as_date(row):
+    if row['gbttBookedDepartureNextDay'] == "1":
+        return row['runDate'] + datetime.timedelta(days=1)
+    return row['runDate']
 
-for ind in df.index:
-    if df['realtimeDeparture'][ind] == "None":
-        df['realtime-departure-time'][ind] = None
-    else:
-        df['realtime-departure-time'][ind] = pd.to_datetime(df['realtimeDeparture'][ind], format='%H%M')
 
-df
+train_data['date-as-date'] = train_data.apply(update_date_as_date, axis=1)
 
-df['time-difference'] = datetime.combine(date.min,df['booked-time'])-datetime.combine(date.min,df['realtime-departure-time'])
+# Process booked and real-time departures
+train_data['booked-time'] = pd.to_datetime(train_data['gbttBookedDeparture'], format=TIME_FORMAT)
 
-df['time-difference']=''
 
-for ind in df.index:
-    if df['realtime-departure-time'][ind] == None:
-        print("a None!")
-    else:
-        df['time-difference'][ind] = (df['realtime-departure-time'][ind]-df['booked-time'][ind]).totalseconds
-        print(df['time-difference'][ind])
+def process_realtime_departure(departure):
+    if departure == "None":
+        return None
+    return pd.to_datetime(departure, format=TIME_FORMAT)
 
-df
 
-#df.to_sql('train_out',conn, if_exists='replace')
+train_data['realtime-departure-time'] = train_data['realtimeDeparture'].apply(process_realtime_departure)
 
-df.dtypes
 
-hist()
+# Calculate time differences
+def calculate_time_difference(row):
+    if row['realtime-departure-time'] is None:
+        return None
+    return (row['realtime-departure-time'] - row['booked-time']).total_seconds()
 
-print((df['time-difference']))
+
+train_data['time-difference'] = train_data.apply(calculate_time_difference, axis=1)
+
+# Display and final output
+print(train_data.dtypes)
+print(train_data['time-difference'])
+
+# Uncomment to save to database
+# train_data.to_sql('train_out', conn, if_exists='replace')
