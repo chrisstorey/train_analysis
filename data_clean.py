@@ -1,237 +1,118 @@
-#!/usr/bin/env python
-
 import argparse
 import json
 import sqlite3
-
 import pandas as pd
 
+# Constants
+STATUS_DATA_LOADED = "  Data Loaded  "
+STATUS_DATA_TRANSFORMED = "  Data Transformed  "
+STATUS_DF_CREATED = "  Dataframe created "
+STATUS_CSV_OUTPUT_COMPLETE = "  Output to csv file complete "
+STATUS_DB_OUTPUT_COMPLETE = "  Output to database complete "
+DEFAULT_MISSING_VALUE = "not-present"
+
+
+# Function to display a status message
+def print_status(message):
+    print("\033[2J")  # Clear screen
+    print(message.center(70, '#'))
+    print("\n")
+
+
+# Function to extract location details
+def extract_location_details(location_str, key, default=DEFAULT_MISSING_VALUE):
+    start = location_str.find(key)
+    if start > 0:
+        end = location_str.find("'", start + len(key) + 3)
+        return location_str[start + len(key) + 3:end]
+    return default
+
+
+# Function to process origin or destination data
+def process_location_data(location_detail, key):
+    location_str = str(location_detail.get(key, {}))
+    return {
+        "tiploc": extract_location_details(location_str, "tiploc"),
+        "description": extract_location_details(location_str, "description"),
+        "workingTime": extract_location_details(location_str, "workingTime"),
+        "publicTime": extract_location_details(location_str, "publicTime"),
+    }
+
+
+# Function to handle optional fields with defaults
+def get_optional_field(data, key, default=""):
+    return data.get(key, default)
+
+
+# Main function to process train data
+def process_train_data(data: dict) -> list[dict]:
+    services = []
+    for service in data["services"]:
+        origin_data = process_location_data(service["locationDetail"], "origin")
+        destination_data = process_location_data(service["locationDetail"], "destination")
+
+        # Append processed service details to the list
+        services.append({
+            "runDate": get_optional_field(service, "runDate"),
+            "trainIdentity": get_optional_field(service, "trainIdentity"),
+            "serviceUid": get_optional_field(service, "serviceUid"),
+            "atocCode": get_optional_field(service, "atocCode"),
+            "atocName": get_optional_field(service, "atocName"),
+            "description": get_optional_field(service["locationDetail"], "description"),
+            "gbttBookedDeparture": get_optional_field(service["locationDetail"], "gbttBookedDeparture"),
+            "gbttBookedDepartureNextDay": get_optional_field(service["locationDetail"], "gbttBookedDepartureNextDay",
+                                                             "None"),
+            "serviceType": get_optional_field(service, "serviceType"),
+            "origin_tiploc": origin_data["tiploc"],
+            "origin_description": origin_data["description"],
+            "origin_workingTime": origin_data["workingTime"],
+            "origin_publicTime": origin_data["publicTime"],
+            "destination_tiploc": destination_data["tiploc"],
+            "destination_description": destination_data["description"],
+            "destination_workingTime": destination_data["workingTime"],
+            "destination_publicTime": destination_data["publicTime"],
+            "realtimeArrival": get_optional_field(service["locationDetail"], "realtimeArrival", "None"),
+            "realtimeDeparture": get_optional_field(service["locationDetail"], "realtimeDeparture", "None"),
+            "cancelReasonCode": get_optional_field(service["locationDetail"], "cancelReasonCode"),
+            "cancelReasonShortText": get_optional_field(service["locationDetail"], "cancelReasonShortText"),
+            "cancelReasonLongText": get_optional_field(service["locationDetail"], "cancelReasonLongText"),
+            "displayAs": get_optional_field(service["locationDetail"], "displayAs"),
+        })
+    return services
+
+
+# Argument setup
 parser = argparse.ArgumentParser(description='RealTimeTrains data cleaner')
 parser.add_argument("--file", "-f", type=str, required=True)
 parser.add_argument("--out", "-o", type=str)
 parser.add_argument("--database", "-d", type=str)
 args = parser.parse_args()
 
-print(args.file)
+# Load data
+with open(args.file) as file:
+    data = json.load(file)
 
-PRINT_TEST=0
+print_status(STATUS_DATA_LOADED)
 
+# Process services
+processed_services = process_train_data(data)
 
-with open (args.file) as f:
-    data = json.load(f)
+print_status(STATUS_DATA_TRANSFORMED)
 
-#clear screen
-print('\033[2J')
+# Create dataframe
+df_combined = pd.DataFrame(processed_services)
 
-#give status message
-status = "  Data Loaded  "
-print(status.center(70, '#'))
-print("\n")
+print_status(STATUS_DF_CREATED)
 
-numberOfServices = len(data['services'])
-
-print("There are %3d services listed in this file for %s" %(numberOfServices,data["location"]["name"]))
-print("\n")
-
-runDate = ['']
-trainIdentity =['']
-serviceUid = ['']
-atocCode = ['']
-atocName = ['']
-description = ['']
-gbttBookedDeparture = ['']
-gbttBookedDepartureNextDay = ['']
-serviceType = ['']
-origin = ['']
-destination = ['']
-realtimeArrival = ['']
-realtimeDeparture = ['']
-cancelReasonCode = ['']
-cancelReasonShortText = ['']
-cancelReasonLongText = ['']
-displayAs =['']
-origin_tiploc = ['']
-origin_description = ['']
-origin_workingTime = ['']
-origin_publicTime = ['']
-destination_tiploc = ['']
-destination_description = ['']
-destination_workingTime = ['']
-destination_publicTime = ['']
-
-for i in range(1,numberOfServices):
-#for i in range(numberOfServices):
-    runDate.append(data['services'][i]['runDate'])
-    trainIdentity.append(data['services'][i]['trainIdentity'])
-    serviceUid.append(data['services'][i]['serviceUid'])
-    atocCode.append(data['services'][i]['atocCode'])
-    atocName.append(data['services'][i]['atocName'])
-    description.append(data['services'][i]['locationDetail']['description'])
-    gbttBookedDeparture.append(data['services'][i]['locationDetail']['gbttBookedDeparture'])
-    serviceType.append(data['services'][i]['serviceType'])
-
-    #select details from origin string to gather sub details
-    origin.append(data['services'][i]['locationDetail']['origin'])
-
-    origin_str = str(origin[i])
-
-
-    start = origin_str.find("tiploc")
-    end = origin_str.find("'",start+10)
-    origin_tiploc.append(origin_str[start+10:end])
-
-    start = origin_str.find("description")
-    end = origin_str.find("'",start+15)
-    origin_description.append(origin_str[start+15:end])
-
-    start = origin_str.find("workingTime")
-    if start > 0:
-        end = origin_str.find("'",start+15)
-        origin_workingTime.append(origin_str[start+15:end])
-    else:
-        origin_workingTime.append("not-present")
-
-
-    start = origin_str.find("publicTime")
-    if start > 0:
-        end = origin_str.find("'",start+14)
-        origin_publicTime.append(origin_str[start+14:end])
-    else:
-        origin_publicTime.append("not-present")
-
-    #select details from destination string to gather sub details
-    destination.append(data['services'][i]['locationDetail']['destination'])
-    destination_str = str(destination[i])
-
-    start = destination_str.find("tiploc")
-    end = destination_str.find("'",start+10)
-    destination_tiploc.append(destination_str[start+10:end])
-
-
-    start = destination_str.find("description")
-    end = destination_str.find("'",start+15)
-    destination_description.append(destination_str[start+15:end])
-
-    start = destination_str.find("workingTime")
-    if start > 0:
-        end = destination_str.find("'",start+15)
-        destination_workingTime.append(destination_str[start+15:end])
-    else:
-        destination_workingTime.append("not-present")
-
-    start = destination_str.find("publicTime")
-    if start > 0:
-        end = destination_str.find("'",start+14)
-        destination_publicTime.append(destination_str[start+14:end])
-    else:
-        destination_publicTime.append("not-present")
-
-    try:
-        realtimeArrival.append(data['services'][i]['locationDetail']['realtimeArrival'])
-    except:
-        realtimeArrival.append("None")
-
-    try:
-        gbttBookedDepartureNextDay.append(data['services'][i]['locationDetail']['gbttBookedDepartureNextDay'])
-    except:
-        gbttBookedDepartureNextDay.append("None")
-
-    try:
-        realtimeDeparture.append(data['services'][i]['locationDetail']['realtimeDeparture'])
-    except:
-        realtimeDeparture.append("None")
-
-    try:
-        cancelReasonCode.append(data['services'][i]['locationDetail']['cancelReasonCode'])
-    except:
-        cancelReasonCode.append("")
-    try:
-        cancelReasonShortText.append(data['services'][i]['locationDetail']['cancelReasonShortText'])
-    except:
-        cancelReasonShortText.append("")
-    try:
-        cancelReasonLongText.append(data['services'][i]['locationDetail']['cancelReasonLongText'])
-    except:
-        cancelReasonLongText.append("")
-    try:
-        displayAs.append(data['services'][i]['locationDetail']['displayAs'])
-    except:
-        displayAs.append("")
-
-
-
-    if PRINT_TEST==1:
-        print("---------------------------------------------------------")
-        print(runDate[i])
-        print(trainIdentity[i])
-        print(serviceUid[i])
-        print(gbttBookedDeparture[i])
-        print("\n")
-        print(origin_tiploc[i])
-        print(origin_description[i])
-        print(origin_workingTime[i])
-        print(origin_publicTime[i])
-        print("\n")
-        print(destination_tiploc[i])
-        print(destination_description[i])
-        print(destination_workingTime[i])
-        print(destination_publicTime[i])
-        print("\n")
-        print("---------------------------------------------------------")
-#give status message
-status = "  Data Transformed  "
-print(status.center(70, '#'))
-print("\n")
-
-#combine series to form one dataframe
-df_combined = pd.DataFrame({'runDate': (runDate),
-                            'trainIdentity': trainIdentity,
-                            'serviceUid': serviceUid,
-                            'atocCode': atocCode,
-                            'atocName': atocName,
-                            'description': description,
-                            'gbttBookedDeparture': gbttBookedDeparture,
-                            'gbttBookedDepartureNextDay': gbttBookedDepartureNextDay,
-                            'serviceType': serviceType,
-                            'origin_tiploc': origin_tiploc,
-                            'origin_description': origin_description,
-                            'origin_workingTime': origin_workingTime,
-                            'origin_publicTime': origin_publicTime,
-                            'destination_tiploc': destination_tiploc,
-                            'destination_description': destination_description,
-                            'destination_workingTime': destination_workingTime,
-                            'destination_publicTime': destination_publicTime,
-                            'realtimeArrival': realtimeArrival,
-                            'realtimeDeparture': realtimeDeparture,
-                            'cancelReasonCode': cancelReasonCode,
-                            'cancelReasonShortText': cancelReasonShortText,
-                            'cancelReasonLongText': cancelReasonLongText,
-                            'displayAs': displayAs})
-
-status = "  Dataframe created "
-print(status.center(70, '#'))
-print("\n")
-
-df_combined = df_combined.drop(0)
-
+# Output to CSV if specified
 if args.out:
-    #export dataframe to csv
-    out_file= ""
-    df_combined.to_csv(args.out)
+    df_combined.to_csv(args.out, index=False)
+    print_status(STATUS_CSV_OUTPUT_COMPLETE)
 
-    status = "  Output to csv file complete "
-    print(status.center(70, '#'))
-    print("\n")
-
-
+# Output to SQLite database if specified
 if args.database:
-    #export dataframe to sqlite
     conn = sqlite3.connect(args.database)
-
-    df_combined.to_sql("traindata", conn, if_exists="append")
-    status = "  Output to database complete "
-    print(status.center(70, '#'))
-    print("\n")
-
-    df_check = pd.read_sql_query("select * from traindata;", conn)
+    df_combined.to_sql("traindata", conn, if_exists="append", index=False)
+    print_status(STATUS_DB_OUTPUT_COMPLETE)
+    df_check = pd.read_sql_query("SELECT * FROM traindata;", conn)
     print(df_check)
