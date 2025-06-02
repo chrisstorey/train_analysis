@@ -36,12 +36,12 @@ def calculate_time_difference(row):
 def main():
     # Argument setup
     parser = argparse.ArgumentParser(description="Time-based analysis for train data.")
-    parser.add_argument("--db_path",
-                        type=str,
-                        required=True,
+    parser.add_argument("--db_path", 
+                        type=str, 
+                        required=True, 
                         help="Path to the SQLite database file.")
-    parser.add_argument("--output_csv",
-                        type=str,
+    parser.add_argument("--output_csv", 
+                        type=str, 
                         help="Optional path to save the processed DataFrame as a CSV file.")
     args = parser.parse_args()
 
@@ -51,7 +51,7 @@ def main():
     try:
         # Load data
         conn = sqlite3.connect(args.db_path)
-
+        
         # Check if table exists
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='traindata'")
@@ -60,9 +60,9 @@ def main():
             if conn:
                 conn.close()
             sys.exit(1)
-
+            
         train_data_loaded = pd.read_sql_query(SQL_QUERY, conn)
-
+        
         if train_data_loaded.empty:
             logging.warning(f"No data loaded from table 'traindata' in {args.db_path}. The table might be empty.")
             # Script will continue, and subsequent checks for train_data.empty will handle this

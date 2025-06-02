@@ -32,7 +32,7 @@ def test_update_date_as_date():
         datetime.datetime(2023, 10, 1),
         datetime.datetime(2023, 10, 3) # Next day
     ], name='date-as-date')
-
+    
     result_series = df.apply(update_date_as_date, axis=1)
     # Ensure the result_series also has a name for comparison if needed, though apply might not set it.
     # If update_date_as_date is expected to return a Series with a specific name, adjust here.
@@ -52,11 +52,11 @@ def test_process_realtime_departure():
     ]
     # Create expected Series with correct dtype for comparison with NaT
     expected = pd.Series(expected_values, dtype='datetime64[ns]')
-    expected.name = 'realtime-departure-time'
-
+    expected.name = 'realtime-departure-time' 
+    
     result = series.apply(process_realtime_departure)
     result.name = 'realtime-departure-time'
-
+    
     assert_series_equal(result, expected, check_dtype=True)
 
 
@@ -64,19 +64,19 @@ def test_calculate_time_difference():
     df = pd.DataFrame({
         'booked-time': [
             pd.to_datetime('1000', format=TIME_FORMAT),
-            pd.to_datetime('1200', format=TIME_FORMAT),
+            pd.to_datetime('1200', format=TIME_FORMAT), 
             pd.to_datetime('1400', format=TIME_FORMAT)
         ],
         'realtime-departure-time': [
             pd.to_datetime('1005', format=TIME_FORMAT),
-            pd.NaT,
+            pd.NaT, 
             pd.to_datetime('1355', format=TIME_FORMAT)
         ]
     })
 
     expected_diff_values = [
         300.0,
-        float('nan'),
+        float('nan'), 
         -300.0
     ]
     expected_diff = pd.Series(expected_diff_values, name='time-difference', dtype='float64')
@@ -96,7 +96,7 @@ def test_time_sort_integration_on_sample_dataframe():
     expected_date_as_date = pd.Series([
         datetime.datetime(2023, 10, 1),
         datetime.datetime(2023, 10, 2),
-        datetime.datetime(2023, 10, 4)
+        datetime.datetime(2023, 10, 4) 
     ], name='date-as-date')
 
     expected_realtime_departure_time_values = [
@@ -104,12 +104,12 @@ def test_time_sort_integration_on_sample_dataframe():
         pd.NaT,
         pd.to_datetime('0015', format=TIME_FORMAT)
     ]
-    expected_realtime_departure_time = pd.Series(expected_realtime_departure_time_values,
+    expected_realtime_departure_time = pd.Series(expected_realtime_departure_time_values, 
                                                  name='realtime-departure-time', dtype='datetime64[ns]')
-
+    
     expected_time_difference_values = [
         (pd.to_datetime('1005', format=TIME_FORMAT) - pd.to_datetime('1000', format=TIME_FORMAT)).total_seconds(),
-        float('nan'),
+        float('nan'), 
         (pd.to_datetime('0015', format=TIME_FORMAT) - pd.to_datetime('0010', format=TIME_FORMAT)).total_seconds()
     ]
     expected_time_difference = pd.Series(expected_time_difference_values, name='time-difference', dtype='float64')

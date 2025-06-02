@@ -282,7 +282,7 @@ Effective logging is essential for debugging and monitoring.
     *   Example basic setup:
         ```python
         import logging
-        logging.basicConfig(level=logging.INFO,
+        logging.basicConfig(level=logging.INFO, 
                             format='%(asctime)s - %(levelname)s - %(message)s',
                             handlers=[logging.FileHandler("train_analysis.log"),
                                       logging.StreamHandler()])
